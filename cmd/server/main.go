@@ -13,6 +13,8 @@ import (
 
 	"github.com/IshaanShivKr/urlvio/internal/config"
 	"github.com/IshaanShivKr/urlvio/internal/database"
+	"github.com/IshaanShivKr/urlvio/internal/handler"
+	"github.com/IshaanShivKr/urlvio/internal/routes"
 	"github.com/gin-gonic/gin"
 )
 
@@ -56,6 +58,9 @@ func run() error {
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
+
+	healthHandler := handler.NewHealthHandler(db)
+	routes.Register(router, healthHandler)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
