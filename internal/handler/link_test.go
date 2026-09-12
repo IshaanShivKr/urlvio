@@ -460,6 +460,10 @@ func TestLinkHandler_Update(t *testing.T) {
 		t.Fatalf("expected code %q, got %q", link.Code, response.Code)
 	}
 
+	if response.ShortURL != "http://localhost:8080/abc123" {
+		t.Fatalf("expected short URL %q, got %q", "http://localhost:8080/abc123", response.ShortURL)
+	}
+
 	if response.URL != link.URL {
 		t.Fatalf("expected URL %q, got %q", link.URL, response.URL)
 	}
@@ -586,6 +590,10 @@ func TestLinkHandler_Delete(t *testing.T) {
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
+	}
+
+	if rec.Body.Len() != 0 {
+		t.Fatalf("expected empty response body, got %q", rec.Body.String())
 	}
 
 	if receivedCode != "abc123" {
