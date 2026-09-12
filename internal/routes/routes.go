@@ -8,10 +8,19 @@ import (
 func Register(
 	router *gin.Engine,
 	healthHandler *handler.HealthHandler,
+	linkHandler *handler.LinkHandler,
 ) {
 	healthz := router.Group("/healthz")
 	{
 		healthz.GET("/live", healthHandler.Live)
 		healthz.GET("/ready", healthHandler.Ready)
+	}
+
+	api := router.Group("/api/v1")
+	{
+		urls := api.Group("/urls")
+		{
+			urls.POST("", linkHandler.Create)
+		}
 	}
 }
