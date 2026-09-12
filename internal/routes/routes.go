@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/IshaanShivKr/urlvio/internal/handler"
+	"github.com/IshaanShivKr/urlvio/internal/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,6 +18,7 @@ func Register(
 	}
 
 	api := router.Group("/api/v1")
+	api.Use(middleware.RateLimiter())
 	{
 		urls := api.Group("/urls")
 		{
