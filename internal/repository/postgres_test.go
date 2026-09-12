@@ -153,9 +153,14 @@ func TestPostgresRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	link := newTestLink("abc123", "https://example.com")
+	other := newTestLink("xyz789", "https://other.com")
 
 	if err := repo.Create(ctx, link); err != nil {
 		t.Fatalf("failed to create link: %v", err)
+	}
+
+	if err := repo.Create(ctx, other); err != nil {
+		t.Fatalf("failed to create other link: %v", err)
 	}
 
 	updatedURL := "https://example.org"
@@ -184,6 +189,19 @@ func TestPostgresRepository_Update(t *testing.T) {
 	if !got.UpdatedAt.After(link.UpdatedAt) {
 		t.Fatalf("expected UpdatedAt to be updated, got %v", got.UpdatedAt)
 	}
+
+	untouched, err := repo.Get(ctx, "xyz789")
+	if err != nil {
+		t.Fatalf("failed to get untouched link: %v", err)
+	}
+
+	if untouched.URL != other.URL {
+		t.Fatalf("expected untouched URL %q, got %q", other.URL, untouched.URL)
+	}
+
+	if untouched.AccessCount != other.AccessCount {
+		t.Fatalf("expected untouched AccessCount %d, got %d", other.AccessCount, untouched.AccessCount)
+	}
 }
 
 func TestPostgresRepository_Update_NotFound(t *testing.T) {
@@ -202,9 +220,14 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	link := newTestLink("abc123", "https://example.com")
+	other := newTestLink("xyz789", "https://other.com")
 
 	if err := repo.Create(ctx, link); err != nil {
 		t.Fatalf("failed to create link: %v", err)
+	}
+
+	if err := repo.Create(ctx, other); err != nil {
+		t.Fatalf("failed to create other link: %v", err)
 	}
 
 	if err := repo.Delete(ctx, "abc123"); err != nil {
@@ -214,6 +237,15 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	_, err := repo.Get(ctx, "abc123")
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected link to be deleted, got error %v", err)
+	}
+
+	untouched, err := repo.Get(ctx, "xyz789")
+	if err != nil {
+		t.Fatalf("expected unrelated link to remain, got %v", err)
+	}
+
+	if untouched.URL != other.URL {
+		t.Fatalf("expected untouched URL %q, got %q", other.URL, untouched.URL)
 	}
 }
 
@@ -235,8 +267,15 @@ func TestPostgresRepository_GetAndIncrement(t *testing.T) {
 	link := newTestLink("abc123", "https://example.com")
 	link.AccessCount = 5
 
+	other := newTestLink("xyz789", "https://other.com")
+	other.AccessCount = 10
+
 	if err := repo.Create(ctx, link); err != nil {
 		t.Fatalf("failed to create link: %v", err)
+	}
+
+	if err := repo.Create(ctx, other); err != nil {
+		t.Fatalf("failed to create other link: %v", err)
 	}
 
 	got, err := repo.GetAndIncrement(ctx, "abc123")
@@ -267,6 +306,23 @@ func TestPostgresRepository_GetAndIncrement(t *testing.T) {
 
 	if stored.AccessCount != 6 {
 		t.Fatalf("expected persisted AccessCount 6, got %d", stored.AccessCount)
+	}
+
+	untouched, err := repo.Get(ctx, "xyz789")
+	if err != nil {
+		t.Fatalf("failed to get untouched link: %v", err)
+	}
+
+	if untouched.AccessCount != other.AccessCount {
+		t.Fatalf(
+			"expected untouched AccessCount %d, got %d",
+			other.AccessCount,
+			untouched.AccessCount,
+		)
+	}
+
+	if untouched.URL != other.URL {
+		t.Fatalf("expected untouched URL %q, got %q", other.URL, untouched.URL)
 	}
 }
 
