@@ -87,3 +87,21 @@ func (r *PostgresRepository) Get(ctx context.Context, code string) (*model.Link,
 
 	return link, nil
 }
+
+func (r *PostgresRepository) Delete(ctx context.Context, code string) error {
+	const query = `
+		DELETE FROM links
+		WHERE code = $1
+	`
+
+	result, err := r.db.Exec(ctx, query, code)
+	if err != nil {
+		return fmt.Errorf("delete link: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}

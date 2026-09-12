@@ -23,6 +23,7 @@ func Register(
 			urls.POST("", linkHandler.Create)
 			urls.GET("/:shortCode/stats", linkHandler.Stats)
 			urls.GET("/:shortCode", linkHandler.Get)
+			urls.DELETE("/:shortCode", linkHandler.Delete)
 		}
 	}
 }

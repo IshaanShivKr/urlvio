@@ -115,6 +115,27 @@ func (h *LinkHandler) Stats(c *gin.Context) {
 	})
 }
 
+func (h *LinkHandler) Delete(c *gin.Context) {
+	code := c.Param("shortCode")
+
+	if err := h.service.Delete(c.Request.Context(), code); err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "link not found",
+			})
+			return
+		}
+
+		slog.Error("failed to delete link", "code", code, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 func newLinkResponse(baseURL, code, rawURL string, createdAt, updatedAt time.Time) CreateLinkResponse {
 	return CreateLinkResponse{
 		Code:      code,

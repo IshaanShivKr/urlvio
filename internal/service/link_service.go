@@ -96,6 +96,24 @@ func (s *LinkService) Get(ctx context.Context, code string) (*model.Link, error)
 	return link, nil
 }
 
+func (s *LinkService) Delete(ctx context.Context, code string) error {
+	code = strings.TrimSpace(code)
+
+	if len(code) != codeLength {
+		return ErrNotFound
+	}
+
+	if err := s.repo.Delete(ctx, code); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrNotFound
+		}
+
+		return fmt.Errorf("delete link: %w", err)
+	}
+
+	return nil
+}
+
 func generateCode() (string, error) {
 	code := make([]byte, codeLength)
 
