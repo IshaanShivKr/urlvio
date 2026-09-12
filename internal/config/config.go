@@ -2,13 +2,10 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
-)
 
-const (
-	defaultPort    = "8080"
-	defaultGinMode = "debug"
-	defaultBaseURL = "http://localhost:8080"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -19,6 +16,10 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	if err := godotenv.Load(); err != nil {
+		slog.Warn("could not load .env file", "error", err)
+	}
+
 	cfg := &Config{
 		BaseURL:     os.Getenv("BASE_URL"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
@@ -27,7 +28,7 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.BaseURL == "" {
-		cfg.BaseURL = defaultBaseURL
+		return nil, fmt.Errorf("BASE_URL environment variable is required")
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -35,11 +36,11 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.GinMode == "" {
-		cfg.GinMode = defaultGinMode
+		return nil, fmt.Errorf("GIN_MODE environment variable is required")
 	}
 
 	if cfg.Port == "" {
-		cfg.Port = defaultPort
+		return nil, fmt.Errorf("PORT environment variable is required")
 	}
 
 	return cfg, nil
