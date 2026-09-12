@@ -27,4 +27,6 @@ func Register(
 			urls.PUT("/:shortCode", linkHandler.Update)
 		}
 	}
+
+	router.GET("/:shortCode", linkHandler.Redirect)
 }

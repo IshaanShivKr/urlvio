@@ -148,3 +148,41 @@ func (r *PostgresRepository) Update(ctx context.Context, code, rawURL string) (*
 
 	return link, nil
 }
+
+func (r *PostgresRepository) GetAndIncrement(ctx context.Context, code string) (*model.Link, error) {
+	const query = `
+		UPDATE links
+		SET access_count = access_count + 1
+		WHERE code = $1
+		RETURNING
+			id,
+			url,
+			code,
+			created_at,
+			updated_at,
+			access_count
+	`
+
+	link := &model.Link{}
+
+	if err := r.db.QueryRow(
+		ctx,
+		query,
+		code,
+	).Scan(
+		&link.ID,
+		&link.URL,
+		&link.Code,
+		&link.CreatedAt,
+		&link.UpdatedAt,
+		&link.AccessCount,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get and increment link: %w", err)
+	}
+
+	return link, nil
+}

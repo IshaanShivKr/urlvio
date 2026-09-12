@@ -147,6 +147,25 @@ func (s *LinkService) Update(ctx context.Context, code, rawURL string) (*model.L
 	return link, nil
 }
 
+func (s *LinkService) GetAndIncrement(ctx context.Context, code string) (*model.Link, error) {
+	code = strings.TrimSpace(code)
+
+	if len(code) != codeLength {
+		return nil, ErrNotFound
+	}
+
+	link, err := s.repo.GetAndIncrement(ctx, code)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get and increment link: %w", err)
+	}
+
+	return link, nil
+}
+
 func generateCode() (string, error) {
 	code := make([]byte, codeLength)
 

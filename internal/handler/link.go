@@ -189,3 +189,25 @@ func newLinkResponse(baseURL, code, rawURL string, createdAt, updatedAt time.Tim
 		UpdatedAt: updatedAt,
 	}
 }
+
+func (h *LinkHandler) Redirect(c *gin.Context) {
+	code := c.Param("shortCode")
+
+	link, err := h.service.GetAndIncrement(c.Request.Context(), code)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "link not found",
+			})
+			return
+		}
+
+		slog.Error("failed to redirect link", "code", code, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
+
+	c.Redirect(http.StatusFound, link.URL)
+}
