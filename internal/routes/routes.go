@@ -24,6 +24,7 @@ func Register(
 			urls.GET("/:shortCode/stats", linkHandler.Stats)
 			urls.GET("/:shortCode", linkHandler.Get)
 			urls.DELETE("/:shortCode", linkHandler.Delete)
+			urls.PUT("/:shortCode", linkHandler.Update)
 		}
 	}
 }

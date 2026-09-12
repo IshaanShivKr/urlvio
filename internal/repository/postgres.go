@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/IshaanShivKr/urlvio/internal/model"
 	"github.com/jackc/pgx/v5"
@@ -104,4 +105,46 @@ func (r *PostgresRepository) Delete(ctx context.Context, code string) error {
 	}
 
 	return nil
+}
+
+func (r *PostgresRepository) Update(ctx context.Context, code, rawURL string) (*model.Link, error) {
+	const query = `
+		UPDATE links
+		SET
+			url = $1,
+			updated_at = $2
+		WHERE code = $3
+		RETURNING
+			id,
+			url,
+			code,
+			created_at,
+			updated_at,
+			access_count
+	`
+
+	link := &model.Link{}
+	
+	if err := r.db.QueryRow(
+		ctx,
+		query,
+		rawURL,
+		time.Now(),
+		code,
+	).Scan(
+		&link.ID,
+		&link.URL,
+		&link.Code,
+		&link.CreatedAt,
+		&link.UpdatedAt,
+		&link.AccessCount,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("update link: %w", err)
+	}
+
+	return link, nil
 }

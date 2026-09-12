@@ -136,6 +136,50 @@ func (h *LinkHandler) Delete(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *LinkHandler) Update(c *gin.Context) {
+	code := c.Param("shortCode")
+
+	var req CreateLinkRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request body",
+		})
+		return
+	}
+
+	link, err := h.service.Update(c.Request.Context(), code, req.URL)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrURLRequired),
+			errors.Is(err, service.ErrInvalidURL):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+
+		case errors.Is(err, service.ErrNotFound):
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "link not found",
+			})
+
+		default:
+			slog.Error("failed to update link", "code", code, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "internal server error",
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, newLinkResponse(
+		h.baseURL,
+		link.Code,
+		link.URL,
+		link.CreatedAt,
+		link.UpdatedAt,
+	))
+}
+
 func newLinkResponse(baseURL, code, rawURL string, createdAt, updatedAt time.Time) CreateLinkResponse {
 	return CreateLinkResponse{
 		Code:      code,

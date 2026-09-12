@@ -114,6 +114,39 @@ func (s *LinkService) Delete(ctx context.Context, code string) error {
 	return nil
 }
 
+func (s *LinkService) Update(ctx context.Context, code, rawURL string) (*model.Link, error) {
+	code = strings.TrimSpace(code)
+	rawURL = strings.TrimSpace(rawURL)
+
+	if len(code) != codeLength {
+		return nil, ErrNotFound
+	}
+
+	if rawURL == "" {
+		return nil, ErrURLRequired
+	}
+
+	parsedURL, err := url.ParseRequestURI(rawURL)
+	if err != nil || parsedURL.Host == "" {
+		return nil, ErrInvalidURL
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return nil, ErrInvalidURL
+	}
+
+	link, err := s.repo.Update(ctx, code, rawURL)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("update link: %w", err)
+	}
+
+	return link, nil
+}
+
 func generateCode() (string, error) {
 	code := make([]byte, codeLength)
 
