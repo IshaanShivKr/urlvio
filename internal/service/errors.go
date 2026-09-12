@@ -6,4 +6,5 @@ var (
 	ErrURLRequired  = errors.New("url is required")
 	ErrInvalidURL   = errors.New("invalid url")
 	ErrNotFound     = errors.New("link not found")
+	ErrCodeGeneration  = errors.New("failed to generate unique code")
 )

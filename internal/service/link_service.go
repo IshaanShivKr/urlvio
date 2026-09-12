@@ -74,7 +74,7 @@ func (s *LinkService) Create(ctx context.Context, rawURL string) (*model.Link, e
 		return link, nil
 	}
 
-	return nil, fmt.Errorf("failed to generate unique code after %d attempts", maxRetries)
+	return nil, fmt.Errorf("%w after %d attempts", ErrCodeGeneration, maxRetries)
 }
 
 func (s *LinkService) Get(ctx context.Context, code string) (*model.Link, error) {

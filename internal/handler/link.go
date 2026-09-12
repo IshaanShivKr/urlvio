@@ -35,18 +35,18 @@ func (h *LinkHandler) Create(c *gin.Context) {
 
 	link, err := h.service.Create(c.Request.Context(), req.URL)
 	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrURLRequired),
-			errors.Is(err, service.ErrInvalidURL):
+		if errors.Is(err, service.ErrURLRequired) ||
+			errors.Is(err, service.ErrInvalidURL) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": err.Error(),
 			})
-		default:
-			slog.Error("failed to create link", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			return
 		}
+
+		slog.Error("failed to create link", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
 		return
 	}
 
