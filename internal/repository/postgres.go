@@ -124,7 +124,7 @@ func (r *PostgresRepository) Update(ctx context.Context, code, rawURL string) (*
 	`
 
 	link := &model.Link{}
-	
+
 	if err := r.db.QueryRow(
 		ctx,
 		query,

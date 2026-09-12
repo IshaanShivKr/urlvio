@@ -15,7 +15,7 @@ const (
 
 func RateLimiter() gin.HandlerFunc {
 	var (
-		mu sync.Mutex
+		mu      sync.Mutex
 		clients = make(map[string]*rate.Limiter)
 	)
 
