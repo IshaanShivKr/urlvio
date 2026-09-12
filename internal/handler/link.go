@@ -87,6 +87,34 @@ func (h *LinkHandler) Get(c *gin.Context) {
 	))
 }
 
+func (h *LinkHandler) Stats(c *gin.Context) {
+	code := c.Param("shortCode")
+
+	link, err := h.service.Get(c.Request.Context(), code)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "link not found",
+			})
+			return
+		}
+
+		slog.Error("failed to get link stats", "code", code, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, LinkStatsResponse{
+		Code:        link.Code,
+		URL:         link.URL,
+		AccessCount: link.AccessCount,
+		CreatedAt:   link.CreatedAt,
+		UpdatedAt:   link.UpdatedAt,
+	})
+}
+
 func newLinkResponse(baseURL, code, rawURL string, createdAt, updatedAt time.Time) CreateLinkResponse {
 	return CreateLinkResponse{
 		Code:      code,
