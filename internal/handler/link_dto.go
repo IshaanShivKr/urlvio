@@ -11,4 +11,5 @@ type CreateLinkResponse struct {
 	ShortURL  string    `json:"short_url"`
 	URL       string    `json:"url"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

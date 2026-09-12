@@ -77,6 +77,25 @@ func (s *LinkService) Create(ctx context.Context, rawURL string) (*model.Link, e
 	return nil, fmt.Errorf("failed to generate unique code after %d attempts", maxRetries)
 }
 
+func (s *LinkService) Get(ctx context.Context, code string) (*model.Link, error) {
+	code = strings.TrimSpace(code)
+
+	if len(code) != codeLength {
+		return nil, ErrNotFound
+	}
+
+	link, err := s.repo.Get(ctx, code)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get link: %w", err)
+	}
+
+	return link, nil
+}
+
 func generateCode() (string, error) {
 	code := make([]byte, codeLength)
 

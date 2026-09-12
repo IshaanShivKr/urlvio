@@ -21,6 +21,7 @@ func Register(
 		urls := api.Group("/urls")
 		{
 			urls.POST("", linkHandler.Create)
+			urls.GET("/:shortCode", linkHandler.Get)
 		}
 	}
 }

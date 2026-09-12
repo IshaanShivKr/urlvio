@@ -34,7 +34,7 @@ func (h *HealthHandler) Ready(c *gin.Context) {
 		slog.Warn("readiness check failed", "error", err)
 		c.JSON(http.StatusServiceUnavailable, healthResponse{
 			Status: "unavailable",
-			Error: "database unavailable",
+			Error:  "database unavailable",
 		})
 		return
 	}

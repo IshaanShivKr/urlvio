@@ -8,4 +8,5 @@ import (
 
 type LinkRepository interface {
 	Create(ctx context.Context, link *model.Link) error
+	Get(ctx context.Context, code string) (*model.Link, error)
 }

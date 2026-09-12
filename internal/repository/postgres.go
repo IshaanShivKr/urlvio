@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/IshaanShivKr/urlvio/internal/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -52,4 +53,37 @@ func (r *PostgresRepository) Create(ctx context.Context, link *model.Link) error
 	}
 
 	return nil
+}
+
+func (r *PostgresRepository) Get(ctx context.Context, code string) (*model.Link, error) {
+	const query = `
+		SELECT
+			id,
+			url,
+			code,
+			created_at,
+			updated_at,
+			access_count
+		FROM links
+		WHERE code = $1
+	`
+
+	link := &model.Link{}
+
+	if err := r.db.QueryRow(ctx, query, code).Scan(
+		&link.ID,
+		&link.URL,
+		&link.Code,
+		&link.CreatedAt,
+		&link.UpdatedAt,
+		&link.AccessCount,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("query link: %w", err)
+	}
+
+	return link, nil
 }
