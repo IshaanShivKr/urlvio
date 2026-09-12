@@ -1,0 +1,681 @@
+openapi: 3.0.3
+
+info:
+  title: urlvio URL Shortener API
+  version: "1.0.0"
+  description: |
+    A URL shortening service. Clients submit a long URL and receive a short
+    code that can be used to redirect visitors to the original URL, look up
+    or update the stored link, retrieve access statistics, or delete the link.
+
+    ## Cross-cutting behavior
+
+    - **Security headers**: every response includes the following headers,
+      set by global middleware:
+      `X-Frame-Options: DENY`,
+      `X-Content-Type-Options: nosniff`,
+      `Referrer-Policy: strict-origin`,
+      `Permissions-Policy: geolocation=(), camera=(), microphone=()`.
+
+    - **Rate limiting**: all endpoints under `/api/v1` are rate limited per
+      client IP using an in-memory token bucket with a capacity of 20 tokens
+      and a refill rate of 10 tokens per second. Requests that exceed the
+      limit receive `429 Too Many Requests`.
+
+      The `/healthz/*` endpoints and the top-level redirect endpoint
+      (`GET /{shortCode}`) are not rate limited.
+
+    - **Authentication**: the API does not define authentication or API-key
+      requirements. All endpoints are public.
+
+servers:
+  - url: /
+    description: |
+      Relative server URL. The externally accessible host and scheme are
+      configured at runtime through the BASE_URL environment variable.
+
+# The API is intentionally public and requires no authentication.
+security: []
+
+tags:
+  - name: Health
+    description: Liveness and readiness probes.
+  - name: Links
+    description: Create, retrieve, update, delete, and inspect shortened links.
+  - name: Redirect
+    description: Public redirection from a short code to the original URL.
+
+paths:
+  /healthz/live:
+    get:
+      tags:
+        - Health
+      operationId: healthLive
+      summary: Liveness probe
+      description: |
+        Returns `200 OK` unconditionally to indicate that the process is
+        running. The liveness check does not verify downstream dependencies.
+      responses:
+        "200":
+          description: Service is alive.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+
+  /healthz/ready:
+    get:
+      tags:
+        - Health
+      operationId: healthReady
+      summary: Readiness probe
+      description: |
+        Checks database connectivity by issuing a database ping.
+
+        Returns `200 OK` when the database is reachable and `503 Service
+        Unavailable` when the database cannot be reached.
+      responses:
+        "200":
+          description: Service is ready and the database is reachable.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+        "503":
+          description: Database is unavailable.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: unavailable
+                error: database unavailable
+
+  /api/v1/urls:
+    post:
+      tags:
+        - Links
+      operationId: createLink
+      summary: Create a shortened link
+      description: |
+        Creates a new shortened link for the supplied URL.
+
+        A random 6-character alphanumeric short code is generated. If a
+        generated code collides with an existing code, generation is retried
+        up to five times.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLinkRequest"
+            example:
+              url: "https://example.com/some/very/long/path"
+      responses:
+        "201":
+          description: Link created successfully.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkResponse"
+              example:
+                code: aB3xY9
+                short_url: "https://short.example/aB3xY9"
+                url: "https://example.com/some/very/long/path"
+                created_at: "2026-09-13T10:15:30Z"
+                updated_at: "2026-09-13T10:15:30Z"
+
+        "400":
+          description: |
+            The request body or supplied URL failed validation.
+
+            Possible errors include:
+            - `invalid request body`
+            - `url is required`
+            - `invalid url`
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidBody:
+                  summary: Request body failed binding validation
+                  value:
+                    error: invalid request body
+                urlRequired:
+                  summary: URL is missing or empty
+                  value:
+                    error: url is required
+                invalidUrl:
+                  summary: URL failed service validation
+                  value:
+                    error: invalid url
+
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/urls/{shortCode}:
+    parameters:
+      - $ref: "#/components/parameters/ShortCode"
+
+    get:
+      tags:
+        - Links
+      operationId: getLink
+      summary: Get a link by short code
+      description: |
+        Returns the stored link details associated with the supplied short
+        code.
+
+        Short codes that are not exactly six characters after trimming are
+        treated as unknown codes and return `404 Not Found`.
+      responses:
+        "200":
+          description: Link found.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkResponse"
+              example:
+                code: aB3xY9
+                short_url: "https://short.example/aB3xY9"
+                url: "https://example.com/some/very/long/path"
+                created_at: "2026-09-13T10:15:30Z"
+                updated_at: "2026-09-13T10:15:30Z"
+
+        "404":
+          $ref: "#/components/responses/LinkNotFound"
+
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Links
+      operationId: updateLink
+      summary: Update a shortened link
+      description: |
+        Replaces the destination URL associated with an existing short code.
+
+        The short code itself is not changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLinkRequest"
+            example:
+              url: "https://example.com/updated/path"
+      responses:
+        "200":
+          description: Link updated successfully.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkResponse"
+              example:
+                code: aB3xY9
+                short_url: "https://short.example/aB3xY9"
+                url: "https://example.com/updated/path"
+                created_at: "2026-09-13T10:15:30Z"
+                updated_at: "2026-09-13T11:00:00Z"
+
+        "400":
+          description: |
+            The request body or supplied URL failed validation.
+
+            Possible errors include:
+            - `invalid request body`
+            - `url is required`
+            - `invalid url`
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidBody:
+                  summary: Request body failed binding validation
+                  value:
+                    error: invalid request body
+                urlRequired:
+                  summary: URL is missing or empty
+                  value:
+                    error: url is required
+                invalidUrl:
+                  summary: URL failed service validation
+                  value:
+                    error: invalid url
+
+        "404":
+          $ref: "#/components/responses/LinkNotFound"
+
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Links
+      operationId: deleteLink
+      summary: Delete a shortened link
+      description: |
+        Permanently deletes the link associated with the supplied short code.
+      responses:
+        "204":
+          description: Link deleted successfully. No response body.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+
+        "404":
+          $ref: "#/components/responses/LinkNotFound"
+
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/urls/{shortCode}/stats:
+    parameters:
+      - $ref: "#/components/parameters/ShortCode"
+
+    get:
+      tags:
+        - Links
+      operationId: getLinkStats
+      summary: Get link access statistics
+      description: |
+        Returns the stored link details together with the number of times the
+        link has been accessed through the redirect endpoint.
+
+        Calling this endpoint does not increment the access count.
+      responses:
+        "200":
+          description: Statistics found.
+          headers:
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkStatsResponse"
+              example:
+                code: aB3xY9
+                url: "https://example.com/some/very/long/path"
+                access_count: 42
+                created_at: "2026-09-13T10:15:30Z"
+                updated_at: "2026-09-13T10:15:30Z"
+
+        "404":
+          $ref: "#/components/responses/LinkNotFound"
+
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /{shortCode}:
+    get:
+      tags:
+        - Redirect
+      operationId: redirectToUrl
+      summary: Redirect to the original URL
+      description: |
+        Looks up the link associated with the supplied short code, atomically
+        increments its access count, and returns an HTTP `302 Found` redirect
+        to the stored destination URL.
+
+        This endpoint is not subject to rate limiting.
+      parameters:
+        - $ref: "#/components/parameters/ShortCode"
+      responses:
+        "302":
+          description: Redirect to the original URL.
+          headers:
+            Location:
+              description: The destination URL associated with the short code.
+              required: true
+              schema:
+                type: string
+                format: uri
+            X-Frame-Options:
+              $ref: "#/components/headers/XFrameOptions"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/XContentTypeOptions"
+            Referrer-Policy:
+              $ref: "#/components/headers/ReferrerPolicy"
+            Permissions-Policy:
+              $ref: "#/components/headers/PermissionsPolicy"
+
+        "404":
+          $ref: "#/components/responses/LinkNotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  parameters:
+    ShortCode:
+      name: shortCode
+      in: path
+      required: true
+      description: |
+        The short code identifying a link.
+
+        Generated codes contain exactly six characters from the alphanumeric
+        alphabet `[A-Za-z0-9]`.
+
+        Codes that are not exactly six characters after trimming whitespace
+        are treated as not found and return `404 Not Found`.
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9]{6}$"
+        example: aB3xY9
+
+  headers:
+    XFrameOptions:
+      description: Fixed value set by the security headers middleware.
+      schema:
+        type: string
+        enum:
+          - DENY
+
+    XContentTypeOptions:
+      description: Fixed value set by the security headers middleware.
+      schema:
+        type: string
+        enum:
+          - nosniff
+
+    ReferrerPolicy:
+      description: Fixed value set by the security headers middleware.
+      schema:
+        type: string
+        enum:
+          - strict-origin
+
+    PermissionsPolicy:
+      description: Fixed value set by the security headers middleware.
+      schema:
+        type: string
+        enum:
+          - "geolocation=(), camera=(), microphone=()"
+
+  responses:
+    LinkNotFound:
+      description: No link exists for the supplied short code.
+      headers:
+        X-Frame-Options:
+          $ref: "#/components/headers/XFrameOptions"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/XContentTypeOptions"
+        Referrer-Policy:
+          $ref: "#/components/headers/ReferrerPolicy"
+        Permissions-Policy:
+          $ref: "#/components/headers/PermissionsPolicy"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: link not found
+
+    RateLimitExceeded:
+      description: |
+        The client exceeded the per-IP rate limit for the `/api/v1` endpoint
+        group.
+
+        The limiter uses a token bucket with a capacity of 20 requests and a
+        refill rate of 10 tokens per second.
+      headers:
+        X-Frame-Options:
+          $ref: "#/components/headers/XFrameOptions"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/XContentTypeOptions"
+        Referrer-Policy:
+          $ref: "#/components/headers/ReferrerPolicy"
+        Permissions-Policy:
+          $ref: "#/components/headers/PermissionsPolicy"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: rate limit exceeded
+
+    InternalServerError:
+      description: An unexpected server-side error occurred.
+      headers:
+        X-Frame-Options:
+          $ref: "#/components/headers/XFrameOptions"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/XContentTypeOptions"
+        Referrer-Policy:
+          $ref: "#/components/headers/ReferrerPolicy"
+        Permissions-Policy:
+          $ref: "#/components/headers/PermissionsPolicy"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: internal server error
+
+  schemas:
+    ErrorResponse:
+      type: object
+      description: Standard error response envelope.
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message.
+          example: link not found
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - unavailable
+          description: Overall health status.
+        error:
+          type: string
+          description: Present when the service is unavailable.
+          example: database unavailable
+
+    CreateLinkRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: |
+            The URL to shorten.
+
+            The URL must be non-empty, absolute, contain a host, use the
+            `http` or `https` scheme, and be no longer than 2048 characters.
+
+            The request is validated during HTTP binding and independently
+            validated by the service layer.
+
+    LinkResponse:
+      type: object
+      description: A shortened link and its metadata.
+      required:
+        - code
+        - short_url
+        - url
+        - created_at
+        - updated_at
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Za-z0-9]{6}$"
+          description: The generated six-character short code.
+          example: aB3xY9
+        short_url:
+          type: string
+          format: uri
+          description: Fully-qualified short URL.
+          example: "https://short.example/aB3xY9"
+        url:
+          type: string
+          format: uri
+          description: Original destination URL.
+          example: "https://example.com/some/very/long/path"
+        created_at:
+          type: string
+          format: date-time
+          description: Time at which the link was created.
+          example: "2026-09-13T10:15:30Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Time at which the link was last updated.
+          example: "2026-09-13T10:15:30Z"
+
+    LinkStatsResponse:
+      type: object
+      description: Link details together with redirect access statistics.
+      required:
+        - code
+        - url
+        - access_count
+        - created_at
+        - updated_at
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Za-z0-9]{6}$"
+          description: The six-character short code.
+          example: aB3xY9
+        url:
+          type: string
+          format: uri
+          description: Original destination URL.
+          example: "https://example.com/some/very/long/path"
+        access_count:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            Number of times the link has been accessed through the redirect
+            endpoint.
+          example: 42
+        created_at:
+          type: string
+          format: date-time
+          description: Time at which the link was created.
+          example: "2026-09-13T10:15:30Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Time at which the link was last updated.
+          example: "2026-09-13T10:15:30Z"

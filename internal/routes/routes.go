@@ -30,5 +30,8 @@ func Register(
 		}
 	}
 
+	router.StaticFile("/docs/api", "docs/index.html")
+	router.StaticFile("/docs/openapi.yaml", "docs/openapi.yaml")
+
 	router.GET("/:shortCode", linkHandler.Redirect)
 }
