@@ -22,10 +22,10 @@ func TestSecurityHeaders(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	expectedHeaders := map[string]string{
-		"X-Frame-Options":       "DENY",
+		"X-Frame-Options":        "DENY",
 		"X-Content-Type-Options": "nosniff",
-		"Referrer-Policy":       "strict-origin",
-		"Permissions-Policy":    "geolocation=(), camera=(), microphone=()",
+		"Referrer-Policy":        "strict-origin",
+		"Permissions-Policy":     "geolocation=(), camera=(), microphone=()",
 	}
 
 	for header, expected := range expectedHeaders {
