@@ -29,7 +29,7 @@ func NewLinkService(repo repository.LinkRepository) *LinkService {
 	return &LinkService{repo: repo}
 }
 
-func (s *LinkService) Create(ctx context.Context, rawURL string) (*model.Link, error) {
+func (s *LinkService) Create(ctx context.Context, userID, rawURL string) (*model.Link, error) {
 	rawURL = strings.TrimSpace(rawURL)
 
 	if rawURL == "" {
@@ -49,6 +49,7 @@ func (s *LinkService) Create(ctx context.Context, rawURL string) (*model.Link, e
 
 	link := &model.Link{
 		ID:          uuid.New(),
+		UserID:      userID,
 		URL:         rawURL,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -77,14 +78,14 @@ func (s *LinkService) Create(ctx context.Context, rawURL string) (*model.Link, e
 	return nil, fmt.Errorf("%w after %d attempts", ErrCodeGeneration, maxRetries)
 }
 
-func (s *LinkService) Get(ctx context.Context, code string) (*model.Link, error) {
+func (s *LinkService) Get(ctx context.Context, userID, code string) (*model.Link, error) {
 	code = strings.TrimSpace(code)
 
 	if len(code) != codeLength {
 		return nil, ErrNotFound
 	}
 
-	link, err := s.repo.Get(ctx, code)
+	link, err := s.repo.Get(ctx, userID, code)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrNotFound
@@ -96,14 +97,14 @@ func (s *LinkService) Get(ctx context.Context, code string) (*model.Link, error)
 	return link, nil
 }
 
-func (s *LinkService) Delete(ctx context.Context, code string) error {
+func (s *LinkService) Delete(ctx context.Context, userID, code string) error {
 	code = strings.TrimSpace(code)
 
 	if len(code) != codeLength {
 		return ErrNotFound
 	}
 
-	if err := s.repo.Delete(ctx, code); err != nil {
+	if err := s.repo.Delete(ctx, userID, code); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return ErrNotFound
 		}
@@ -114,7 +115,7 @@ func (s *LinkService) Delete(ctx context.Context, code string) error {
 	return nil
 }
 
-func (s *LinkService) Update(ctx context.Context, code, rawURL string) (*model.Link, error) {
+func (s *LinkService) Update(ctx context.Context, userID, code, rawURL string) (*model.Link, error) {
 	code = strings.TrimSpace(code)
 	rawURL = strings.TrimSpace(rawURL)
 
@@ -135,7 +136,7 @@ func (s *LinkService) Update(ctx context.Context, code, rawURL string) (*model.L
 		return nil, ErrInvalidURL
 	}
 
-	link, err := s.repo.Update(ctx, code, rawURL)
+	link, err := s.repo.Update(ctx, userID, code, rawURL)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrNotFound

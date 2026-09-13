@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const testUserID = "user_test_123"
+
 func newTestRepository(t *testing.T) *PostgresRepository {
 	t.Helper()
 
@@ -47,6 +49,7 @@ func newTestLink(code, rawURL string) *model.Link {
 
 	return &model.Link{
 		ID:          uuid.New(),
+		UserID:      testUserID,
 		URL:         rawURL,
 		Code:        code,
 		CreatedAt:   now,
@@ -66,13 +69,17 @@ func TestPostgresRepository_Create(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	got, err := repo.Get(ctx, "abc123")
+	got, err := repo.Get(ctx, testUserID, "abc123")
 	if err != nil {
 		t.Fatalf("expected created link to be found, got %v", err)
 	}
 
 	if got.ID != link.ID {
 		t.Fatalf("expected ID %v, got %v", link.ID, got.ID)
+	}
+
+	if got.UserID != link.UserID {
+		t.Fatalf("expected UserID %q, got %q", link.UserID, got.UserID)
 	}
 
 	if got.URL != link.URL {
@@ -115,13 +122,17 @@ func TestPostgresRepository_Get(t *testing.T) {
 		t.Fatalf("failed to create link: %v", err)
 	}
 
-	got, err := repo.Get(ctx, "abc123")
+	got, err := repo.Get(ctx, testUserID, "abc123")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	if got.ID != link.ID {
 		t.Fatalf("expected ID %v, got %v", link.ID, got.ID)
+	}
+
+	if got.UserID != link.UserID {
+		t.Fatalf("expected UserID %q, got %q", link.UserID, got.UserID)
 	}
 
 	if got.URL != link.URL {
@@ -141,7 +152,7 @@ func TestPostgresRepository_Get_NotFound(t *testing.T) {
 	repo := newTestRepository(t)
 	ctx := context.Background()
 
-	_, err := repo.Get(ctx, "abc123")
+	_, err := repo.Get(ctx, testUserID, "abc123")
 
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
@@ -165,13 +176,17 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 	updatedURL := "https://example.org"
 
-	got, err := repo.Update(ctx, "abc123", updatedURL)
+	got, err := repo.Update(ctx, testUserID, "abc123", updatedURL)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	if got.ID != link.ID {
 		t.Fatalf("expected ID %v, got %v", link.ID, got.ID)
+	}
+
+	if got.UserID != link.UserID {
+		t.Fatalf("expected UserID %q, got %q", link.UserID, got.UserID)
 	}
 
 	if got.Code != link.Code {
@@ -190,7 +205,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		t.Fatalf("expected UpdatedAt to be updated, got %v", got.UpdatedAt)
 	}
 
-	untouched, err := repo.Get(ctx, "xyz789")
+	untouched, err := repo.Get(ctx, testUserID, "xyz789")
 	if err != nil {
 		t.Fatalf("failed to get untouched link: %v", err)
 	}
@@ -208,7 +223,7 @@ func TestPostgresRepository_Update_NotFound(t *testing.T) {
 	repo := newTestRepository(t)
 	ctx := context.Background()
 
-	_, err := repo.Update(ctx, "abc123", "https://example.org")
+	_, err := repo.Update(ctx, testUserID, "abc123", "https://example.org")
 
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
@@ -230,16 +245,16 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		t.Fatalf("failed to create other link: %v", err)
 	}
 
-	if err := repo.Delete(ctx, "abc123"); err != nil {
+	if err := repo.Delete(ctx, testUserID, "abc123"); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	_, err := repo.Get(ctx, "abc123")
+	_, err := repo.Get(ctx, testUserID, "abc123")
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected link to be deleted, got error %v", err)
 	}
 
-	untouched, err := repo.Get(ctx, "xyz789")
+	untouched, err := repo.Get(ctx, testUserID, "xyz789")
 	if err != nil {
 		t.Fatalf("expected unrelated link to remain, got %v", err)
 	}
@@ -253,7 +268,7 @@ func TestPostgresRepository_Delete_NotFound(t *testing.T) {
 	repo := newTestRepository(t)
 	ctx := context.Background()
 
-	err := repo.Delete(ctx, "abc123")
+	err := repo.Delete(ctx, testUserID, "abc123")
 
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
@@ -287,6 +302,10 @@ func TestPostgresRepository_GetAndIncrement(t *testing.T) {
 		t.Fatalf("expected ID %v, got %v", link.ID, got.ID)
 	}
 
+	if got.UserID != link.UserID {
+		t.Fatalf("expected UserID %q, got %q", link.UserID, got.UserID)
+	}
+
 	if got.URL != link.URL {
 		t.Fatalf("expected URL %q, got %q", link.URL, got.URL)
 	}
@@ -299,7 +318,7 @@ func TestPostgresRepository_GetAndIncrement(t *testing.T) {
 		t.Fatalf("expected AccessCount 6, got %d", got.AccessCount)
 	}
 
-	stored, err := repo.Get(ctx, "abc123")
+	stored, err := repo.Get(ctx, testUserID, "abc123")
 	if err != nil {
 		t.Fatalf("failed to get updated link: %v", err)
 	}
@@ -308,7 +327,7 @@ func TestPostgresRepository_GetAndIncrement(t *testing.T) {
 		t.Fatalf("expected persisted AccessCount 6, got %d", stored.AccessCount)
 	}
 
-	untouched, err := repo.Get(ctx, "xyz789")
+	untouched, err := repo.Get(ctx, testUserID, "xyz789")
 	if err != nil {
 		t.Fatalf("failed to get untouched link: %v", err)
 	}
@@ -364,7 +383,7 @@ func TestPostgresRepository_GetAndIncrement_Concurrent(t *testing.T) {
 		}
 	}
 
-	got, err := repo.Get(ctx, "abc123")
+	got, err := repo.Get(ctx, testUserID, "abc123")
 	if err != nil {
 		t.Fatalf("failed to get link after concurrent increments: %v", err)
 	}

@@ -8,6 +8,7 @@ import (
 
 type Link struct {
 	ID          uuid.UUID
+	UserID		string
 	URL         string
 	Code        string
 	CreatedAt   time.Time

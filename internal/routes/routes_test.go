@@ -26,15 +26,15 @@ func (stubLinkRepository) Create(ctx context.Context, link *model.Link) error {
 	return nil
 }
 
-func (stubLinkRepository) Get(ctx context.Context, code string) (*model.Link, error) {
+func (stubLinkRepository) Get(ctx context.Context, userID, code string) (*model.Link, error) {
 	return &model.Link{Code: code, URL: "https://example.com"}, nil
 }
 
-func (stubLinkRepository) Delete(ctx context.Context, code string) error {
+func (s stubLinkRepository) Delete(ctx context.Context, userID, code string) error {
 	return nil
 }
 
-func (stubLinkRepository) Update(ctx context.Context, code, rawURL string) (*model.Link, error) {
+func (stubLinkRepository) Update(ctx context.Context, userID, code, rawURL string) (*model.Link, error) {
 	return &model.Link{Code: code, URL: rawURL}, nil
 }
 

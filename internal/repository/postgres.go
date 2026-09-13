@@ -24,19 +24,21 @@ func (r *PostgresRepository) Create(ctx context.Context, link *model.Link) error
 	const query = `
 		INSERT INTO links (
 			id,
+			user_id,
 			url,
 			code,
 			created_at,
 			updated_at,
 			access_count
 		)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	if _, err := r.db.Exec(
 		ctx,
 		query,
 		link.ID,
+		link.UserID,
 		link.URL,
 		link.Code,
 		link.CreatedAt,
@@ -56,23 +58,25 @@ func (r *PostgresRepository) Create(ctx context.Context, link *model.Link) error
 	return nil
 }
 
-func (r *PostgresRepository) Get(ctx context.Context, code string) (*model.Link, error) {
+func (r *PostgresRepository) Get(ctx context.Context, userID, code string) (*model.Link, error) {
 	const query = `
 		SELECT
 			id,
+			user_id,
 			url,
 			code,
 			created_at,
 			updated_at,
 			access_count
 		FROM links
-		WHERE code = $1
+		WHERE user_id = $1 AND code = $2
 	`
 
 	link := &model.Link{}
 
-	if err := r.db.QueryRow(ctx, query, code).Scan(
+	if err := r.db.QueryRow(ctx, query, userID, code).Scan(
 		&link.ID,
+		&link.UserID,
 		&link.URL,
 		&link.Code,
 		&link.CreatedAt,
@@ -89,13 +93,13 @@ func (r *PostgresRepository) Get(ctx context.Context, code string) (*model.Link,
 	return link, nil
 }
 
-func (r *PostgresRepository) Delete(ctx context.Context, code string) error {
+func (r *PostgresRepository) Delete(ctx context.Context, userID, code string) error {
 	const query = `
 		DELETE FROM links
-		WHERE code = $1
+		WHERE user_id = $1 AND code = $2
 	`
 
-	result, err := r.db.Exec(ctx, query, code)
+	result, err := r.db.Exec(ctx, query, userID, code)
 	if err != nil {
 		return fmt.Errorf("delete link: %w", err)
 	}
@@ -107,15 +111,16 @@ func (r *PostgresRepository) Delete(ctx context.Context, code string) error {
 	return nil
 }
 
-func (r *PostgresRepository) Update(ctx context.Context, code, rawURL string) (*model.Link, error) {
+func (r *PostgresRepository) Update(ctx context.Context, userID, code, rawURL string) (*model.Link, error) {
 	const query = `
 		UPDATE links
 		SET
 			url = $1,
 			updated_at = $2
-		WHERE code = $3
+		WHERE user_id = $3 AND code = $4
 		RETURNING
 			id,
+			user_id,
 			url,
 			code,
 			created_at,
@@ -130,9 +135,11 @@ func (r *PostgresRepository) Update(ctx context.Context, code, rawURL string) (*
 		query,
 		rawURL,
 		time.Now(),
+		userID,
 		code,
 	).Scan(
 		&link.ID,
+		&link.UserID,
 		&link.URL,
 		&link.Code,
 		&link.CreatedAt,
@@ -156,6 +163,7 @@ func (r *PostgresRepository) GetAndIncrement(ctx context.Context, code string) (
 		WHERE code = $1
 		RETURNING
 			id,
+			user_id,
 			url,
 			code,
 			created_at,
@@ -171,6 +179,7 @@ func (r *PostgresRepository) GetAndIncrement(ctx context.Context, code string) (
 		code,
 	).Scan(
 		&link.ID,
+		&link.UserID,
 		&link.URL,
 		&link.Code,
 		&link.CreatedAt,

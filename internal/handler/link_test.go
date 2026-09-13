@@ -19,9 +19,9 @@ import (
 
 type mockLinkRepository struct {
 	createFunc          func(context.Context, *model.Link) error
-	getFunc             func(context.Context, string) (*model.Link, error)
-	deleteFunc          func(context.Context, string) error
-	updateFunc          func(context.Context, string, string) (*model.Link, error)
+	getFunc             func(context.Context, string, string) (*model.Link, error)
+	deleteFunc          func(context.Context, string, string) error
+	updateFunc          func(context.Context, string, string, string) (*model.Link, error)
 	getAndIncrementFunc func(context.Context, string) (*model.Link, error)
 }
 
@@ -32,23 +32,23 @@ func (m *mockLinkRepository) Create(ctx context.Context, link *model.Link) error
 	return nil
 }
 
-func (m *mockLinkRepository) Get(ctx context.Context, code string) (*model.Link, error) {
+func (m *mockLinkRepository) Get(ctx context.Context, userID, code string) (*model.Link, error) {
 	if m.getFunc != nil {
-		return m.getFunc(ctx, code)
+		return m.getFunc(ctx, userID, code)
 	}
 	return nil, repository.ErrNotFound
 }
 
-func (m *mockLinkRepository) Delete(ctx context.Context, code string) error {
+func (m *mockLinkRepository) Delete(ctx context.Context, userID, code string) error {
 	if m.deleteFunc != nil {
-		return m.deleteFunc(ctx, code)
+		return m.deleteFunc(ctx, userID, code)
 	}
 	return repository.ErrNotFound
 }
 
-func (m *mockLinkRepository) Update(ctx context.Context, code, rawURL string) (*model.Link, error) {
+func (m *mockLinkRepository) Update(ctx context.Context, userID, code, rawURL string) (*model.Link, error) {
 	if m.updateFunc != nil {
-		return m.updateFunc(ctx, code, rawURL)
+		return m.updateFunc(ctx, userID, code, rawURL)
 	}
 	return nil, repository.ErrNotFound
 }
@@ -67,7 +67,14 @@ func newTestHandler(repo repository.LinkRepository) *LinkHandler {
 
 func setupRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	return gin.New()
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("userID", "test-user-id")
+		c.Next()
+	})
+
+	return router
 }
 
 func TestLinkHandler_Create(t *testing.T) {
@@ -208,7 +215,7 @@ func TestLinkHandler_Get(t *testing.T) {
 	}
 
 	repo := &mockLinkRepository{
-		getFunc: func(ctx context.Context, code string) (*model.Link, error) {
+		getFunc: func(ctx context.Context, userID, code string) (*model.Link, error) {
 			if code != "abc123" {
 				t.Fatalf("expected code abc123, got %q", code)
 			}
@@ -249,7 +256,7 @@ func TestLinkHandler_Get(t *testing.T) {
 
 func TestLinkHandler_Get_NotFound(t *testing.T) {
 	repo := &mockLinkRepository{
-		getFunc: func(ctx context.Context, code string) (*model.Link, error) {
+		getFunc: func(ctx context.Context, userID, code string) (*model.Link, error) {
 			return nil, repository.ErrNotFound
 		},
 	}
@@ -274,7 +281,7 @@ func TestLinkHandler_Get_NotFound(t *testing.T) {
 
 func TestLinkHandler_Get_RepositoryError(t *testing.T) {
 	repo := &mockLinkRepository{
-		getFunc: func(ctx context.Context, code string) (*model.Link, error) {
+		getFunc: func(ctx context.Context, userID, code string) (*model.Link, error) {
 			return nil, errors.New("database unavailable")
 		},
 	}
@@ -308,7 +315,7 @@ func TestLinkHandler_Stats(t *testing.T) {
 	}
 
 	repo := &mockLinkRepository{
-		getFunc: func(ctx context.Context, code string) (*model.Link, error) {
+		getFunc: func(ctx context.Context, userID, code string) (*model.Link, error) {
 			if code != "abc123" {
 				t.Fatalf("expected code abc123, got %q", code)
 			}
@@ -361,7 +368,7 @@ func TestLinkHandler_Stats(t *testing.T) {
 
 func TestLinkHandler_Stats_NotFound(t *testing.T) {
 	repo := &mockLinkRepository{
-		getFunc: func(ctx context.Context, code string) (*model.Link, error) {
+		getFunc: func(ctx context.Context, userID, code string) (*model.Link, error) {
 			return nil, repository.ErrNotFound
 		},
 	}
@@ -386,7 +393,7 @@ func TestLinkHandler_Stats_NotFound(t *testing.T) {
 
 func TestLinkHandler_Stats_RepositoryError(t *testing.T) {
 	repo := &mockLinkRepository{
-		getFunc: func(ctx context.Context, code string) (*model.Link, error) {
+		getFunc: func(ctx context.Context, userID, code string) (*model.Link, error) {
 			return nil, errors.New("database unavailable")
 		},
 	}
@@ -420,7 +427,7 @@ func TestLinkHandler_Update(t *testing.T) {
 	}
 
 	repo := &mockLinkRepository{
-		updateFunc: func(ctx context.Context, code, rawURL string) (*model.Link, error) {
+		updateFunc: func(ctx context.Context, userID, code, rawURL string) (*model.Link, error) {
 			if code != "abc123" {
 				t.Fatalf("expected code abc123, got %q", code)
 			}
@@ -515,7 +522,7 @@ func TestLinkHandler_Update_InvalidURL(t *testing.T) {
 
 func TestLinkHandler_Update_NotFound(t *testing.T) {
 	repo := &mockLinkRepository{
-		updateFunc: func(ctx context.Context, code, rawURL string) (*model.Link, error) {
+		updateFunc: func(ctx context.Context, userID, code, rawURL string) (*model.Link, error) {
 			return nil, repository.ErrNotFound
 		},
 	}
@@ -541,7 +548,7 @@ func TestLinkHandler_Update_NotFound(t *testing.T) {
 
 func TestLinkHandler_Update_RepositoryError(t *testing.T) {
 	repo := &mockLinkRepository{
-		updateFunc: func(ctx context.Context, code, rawURL string) (*model.Link, error) {
+		updateFunc: func(ctx context.Context, userID, code, rawURL string) (*model.Link, error) {
 			return nil, errors.New("database unavailable")
 		},
 	}
@@ -569,7 +576,7 @@ func TestLinkHandler_Delete(t *testing.T) {
 	var receivedCode string
 
 	repo := &mockLinkRepository{
-		deleteFunc: func(ctx context.Context, code string) error {
+		deleteFunc: func(ctx context.Context, userID, code string) error {
 			receivedCode = code
 			return nil
 		},
@@ -603,7 +610,7 @@ func TestLinkHandler_Delete(t *testing.T) {
 
 func TestLinkHandler_Delete_NotFound(t *testing.T) {
 	repo := &mockLinkRepository{
-		deleteFunc: func(ctx context.Context, code string) error {
+		deleteFunc: func(ctx context.Context, userID, code string) error {
 			return repository.ErrNotFound
 		},
 	}
@@ -628,7 +635,7 @@ func TestLinkHandler_Delete_NotFound(t *testing.T) {
 
 func TestLinkHandler_Delete_RepositoryError(t *testing.T) {
 	repo := &mockLinkRepository{
-		deleteFunc: func(ctx context.Context, code string) error {
+		deleteFunc: func(ctx context.Context, userID, code string) error {
 			return errors.New("database unavailable")
 		},
 	}

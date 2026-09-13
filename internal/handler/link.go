@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IshaanShivKr/urlvio/internal/auth"
 	"github.com/IshaanShivKr/urlvio/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -24,6 +25,12 @@ func NewLinkHandler(service *service.LinkService, baseURL string) *LinkHandler {
 }
 
 func (h *LinkHandler) Create(c *gin.Context) {
+	userID, ok := auth.UserID(c)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	var req CreateLinkRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -33,7 +40,7 @@ func (h *LinkHandler) Create(c *gin.Context) {
 		return
 	}
 
-	link, err := h.service.Create(c.Request.Context(), req.URL)
+	link, err := h.service.Create(c.Request.Context(), userID, req.URL)
 	if err != nil {
 		if errors.Is(err, service.ErrURLRequired) ||
 			errors.Is(err, service.ErrInvalidURL) {
@@ -60,9 +67,15 @@ func (h *LinkHandler) Create(c *gin.Context) {
 }
 
 func (h *LinkHandler) Get(c *gin.Context) {
+	userID, ok := auth.UserID(c)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	code := c.Param("shortCode")
 
-	link, err := h.service.Get(c.Request.Context(), code)
+	link, err := h.service.Get(c.Request.Context(), userID, code)
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -88,9 +101,15 @@ func (h *LinkHandler) Get(c *gin.Context) {
 }
 
 func (h *LinkHandler) Stats(c *gin.Context) {
+	userID, ok := auth.UserID(c)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	code := c.Param("shortCode")
 
-	link, err := h.service.Get(c.Request.Context(), code)
+	link, err := h.service.Get(c.Request.Context(), userID, code)
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -116,9 +135,15 @@ func (h *LinkHandler) Stats(c *gin.Context) {
 }
 
 func (h *LinkHandler) Delete(c *gin.Context) {
+	userID, ok := auth.UserID(c)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	code := c.Param("shortCode")
 
-	if err := h.service.Delete(c.Request.Context(), code); err != nil {
+	if err := h.service.Delete(c.Request.Context(), userID, code); err != nil {
 		if errors.Is(err, service.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "link not found",
@@ -137,6 +162,12 @@ func (h *LinkHandler) Delete(c *gin.Context) {
 }
 
 func (h *LinkHandler) Update(c *gin.Context) {
+	userID, ok := auth.UserID(c)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	code := c.Param("shortCode")
 
 	var req CreateLinkRequest
@@ -148,7 +179,7 @@ func (h *LinkHandler) Update(c *gin.Context) {
 		return
 	}
 
-	link, err := h.service.Update(c.Request.Context(), code, req.URL)
+	link, err := h.service.Update(c.Request.Context(), userID, code, req.URL)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrURLRequired),
