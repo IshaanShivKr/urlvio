@@ -42,6 +42,13 @@ func (stubLinkRepository) GetAndIncrement(ctx context.Context, code string) (*mo
 	return &model.Link{Code: code, URL: "https://example.com"}, nil
 }
 
+func testAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("userID", "test-user-id")
+		c.Next()
+	}
+}
+
 func newTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
@@ -52,7 +59,7 @@ func newTestRouter() *gin.Engine {
 	)
 
 	router := gin.New()
-	Register(router, healthHandler, linkHandler)
+	Register(router, healthHandler, linkHandler, testAuthMiddleware())
 
 	return router
 }
@@ -116,20 +123,38 @@ func TestRegister_RateLimiterAppliedToAPIGroup(t *testing.T) {
 
 	const ip = "203.0.113.10:12345"
 
-	for i := 0; i < burstSize; i++ {
-		rec := doRequest(router, http.MethodGet, "/api/v1/urls/abc123", "", ip)
+	for i := range burstSize {
+		rec := doRequest(
+			router,
+			http.MethodGet,
+			"/api/v1/urls/abc123",
+			"",
+			ip,
+		)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("request %d: expected status %d, got %d", i+1, http.StatusOK, rec.Code)
+			t.Fatalf(
+				"request %d: expected status %d, got %d",
+				i+1,
+				http.StatusOK,
+				rec.Code,
+			)
 		}
 	}
 
-	rec := doRequest(router, http.MethodGet, "/api/v1/urls/abc123", "", ip)
+	rec := doRequest(
+		router,
+		http.MethodGet,
+		"/api/v1/urls/abc123",
+		"",
+		ip,
+	)
 
 	if rec.Code != http.StatusTooManyRequests {
 		t.Fatalf(
 			"expected /api/v1/urls to be rate limited after %d requests, got status %d",
-			burstSize, rec.Code,
+			burstSize,
+			rec.Code,
 		)
 	}
 }
@@ -139,13 +164,20 @@ func TestRegister_RateLimiterNotAppliedToHealthz(t *testing.T) {
 
 	const ip = "203.0.113.11:12345"
 
-	for i := 0; i < burstSize+1; i++ {
-		rec := doRequest(router, http.MethodGet, "/healthz/live", "", ip)
+	for i := range burstSize + 1 {
+		rec := doRequest(
+			router,
+			http.MethodGet,
+			"/healthz/live",
+			"",
+			ip,
+		)
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf(
 				"request %d: expected /healthz/live to never be rate limited, got status %d",
-				i+1, rec.Code,
+				i+1,
+				rec.Code,
 			)
 		}
 	}
@@ -156,14 +188,55 @@ func TestRegister_RateLimiterNotAppliedToRedirect(t *testing.T) {
 
 	const ip = "203.0.113.12:12345"
 
-	for i := 0; i < burstSize+1; i++ {
-		rec := doRequest(router, http.MethodGet, "/abc123", "", ip)
+	for i := range burstSize + 1 {
+		rec := doRequest(
+			router,
+			http.MethodGet,
+			"/abc123",
+			"",
+			ip,
+		)
 
 		if rec.Code != http.StatusFound {
 			t.Fatalf(
 				"request %d: expected redirect to never be rate limited, got status %d",
-				i+1, rec.Code,
+				i+1,
+				rec.Code,
 			)
 		}
+	}
+}
+
+func TestRegister_AuthenticationRequired(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	healthHandler := handler.NewHealthHandler(stubPinger{})
+	linkHandler := handler.NewLinkHandler(
+		service.NewLinkService(stubLinkRepository{}),
+		"http://localhost:8080",
+	)
+
+	router := gin.New()
+
+	unauthenticated := func(c *gin.Context) {
+		c.AbortWithStatus(http.StatusUnauthorized)
+	}
+
+	Register(router, healthHandler, linkHandler, unauthenticated)
+
+	rec := doRequest(
+		router,
+		http.MethodGet,
+		"/api/v1/urls/abc123",
+		"",
+		"",
+	)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusUnauthorized,
+			rec.Code,
+		)
 	}
 }

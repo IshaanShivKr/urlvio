@@ -11,20 +11,22 @@ import (
 )
 
 type Config struct {
-	BaseURL     string
-	DatabaseURL string
-	GinMode     string
-	Port        string
+	BaseURL        string
+	DatabaseURL    string
+	GinMode        string
+	Port           string
+	ClerkSecretKey string
 }
 
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		BaseURL:     os.Getenv("BASE_URL"),
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		GinMode:     os.Getenv("GIN_MODE"),
-		Port:        os.Getenv("PORT"),
+		BaseURL:        os.Getenv("BASE_URL"),
+		DatabaseURL:    os.Getenv("DATABASE_URL"),
+		GinMode:        os.Getenv("GIN_MODE"),
+		Port:           os.Getenv("PORT"),
+		ClerkSecretKey: os.Getenv("CLERK_SECRET_KEY"),
 	}
 
 	if err := validate(cfg); err != nil {
@@ -64,6 +66,10 @@ func validate(cfg *Config) error {
 	port, err := strconv.Atoi(cfg.Port)
 	if err != nil || port < 1 || port > 65535 {
 		return fmt.Errorf("PORT must be a valid port between 1 and 65535")
+	}
+
+	if cfg.ClerkSecretKey == "" {
+		return fmt.Errorf("CLERK_SECRET_KEY environment variable is required")
 	}
 
 	return nil

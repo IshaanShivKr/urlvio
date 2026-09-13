@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/IshaanShivKr/urlvio/internal/auth"
 	"github.com/IshaanShivKr/urlvio/internal/config"
 	"github.com/IshaanShivKr/urlvio/internal/database"
 	"github.com/IshaanShivKr/urlvio/internal/handler"
@@ -18,6 +19,7 @@ import (
 	"github.com/IshaanShivKr/urlvio/internal/repository"
 	"github.com/IshaanShivKr/urlvio/internal/routes"
 	"github.com/IshaanShivKr/urlvio/internal/service"
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gin-gonic/gin"
 )
 
@@ -42,6 +44,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	clerk.SetKey(cfg.ClerkSecretKey)
 
 	dbCtx, dbCancel := context.WithTimeout(
 		context.Background(),
@@ -69,7 +73,7 @@ func run() error {
 	linkService := service.NewLinkService(repo)
 	linkHandler := handler.NewLinkHandler(linkService, cfg.BaseURL)
 
-	routes.Register(router, healthHandler, linkHandler)
+	routes.Register(router, healthHandler, linkHandler, auth.Middleware())
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

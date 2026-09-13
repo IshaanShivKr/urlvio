@@ -10,6 +10,7 @@ func Register(
 	router *gin.Engine,
 	healthHandler *handler.HealthHandler,
 	linkHandler *handler.LinkHandler,
+	authMiddleware gin.HandlerFunc,
 ) {
 	healthz := router.Group("/healthz")
 	{
@@ -21,6 +22,7 @@ func Register(
 	api.Use(middleware.RateLimiter())
 	{
 		urls := api.Group("/urls")
+		urls.Use(authMiddleware)
 		{
 			urls.POST("", linkHandler.Create)
 			urls.GET("/:shortCode/stats", linkHandler.Stats)
