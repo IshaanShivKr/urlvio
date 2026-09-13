@@ -9,6 +9,7 @@ import (
 type LinkRepository interface {
 	Create(ctx context.Context, link *model.Link) error
 	Get(ctx context.Context, userID, code string) (*model.Link, error)
+	List(ctx context.Context, userID string) ([]*model.Link, error)
 	Delete(ctx context.Context, userID, code string) error
 	Update(ctx context.Context, userID, code, rawURL string) (*model.Link, error)
 	GetAndIncrement(ctx context.Context, code string) (*model.Link, error)

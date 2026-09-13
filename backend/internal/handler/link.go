@@ -100,6 +100,22 @@ func (h *LinkHandler) Get(c *gin.Context) {
 	))
 }
 
+func (h *LinkHandler) List(c *gin.Context) {
+	userID, ok := auth.UserID(c)
+	if !ok {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	links, err := h.service.List(c.Request.Context(), userID)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	c.JSON(http.StatusOK, links)
+}
+
 func (h *LinkHandler) Stats(c *gin.Context) {
 	userID, ok := auth.UserID(c)
 	if !ok {

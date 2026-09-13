@@ -20,6 +20,7 @@ import (
 type mockLinkRepository struct {
 	createFunc          func(context.Context, *model.Link) error
 	getFunc             func(context.Context, string, string) (*model.Link, error)
+	listFunc            func(context.Context, string) ([]*model.Link, error)
 	deleteFunc          func(context.Context, string, string) error
 	updateFunc          func(context.Context, string, string, string) (*model.Link, error)
 	getAndIncrementFunc func(context.Context, string) (*model.Link, error)
@@ -37,6 +38,13 @@ func (m *mockLinkRepository) Get(ctx context.Context, userID, code string) (*mod
 		return m.getFunc(ctx, userID, code)
 	}
 	return nil, repository.ErrNotFound
+}
+
+func (m *mockLinkRepository) List(ctx context.Context, userID string) ([]*model.Link, error) {
+	if m.listFunc != nil {
+		return m.listFunc(ctx, userID)
+	}
+	return nil, nil
 }
 
 func (m *mockLinkRepository) Delete(ctx context.Context, userID, code string) error {
@@ -293,6 +301,161 @@ func TestLinkHandler_Get_RepositoryError(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodGet,
 		"/api/v1/urls/abc123",
+		nil,
+	)
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
+	}
+}
+
+func TestLinkHandler_List(t *testing.T) {
+	expected := []*model.Link{
+		{
+			ID:          uuid.New(),
+			UserID:      "user_test_123",
+			URL:         "https://example.com",
+			Code:        "abc123",
+			AccessCount: 5,
+		},
+		{
+			ID:          uuid.New(),
+			UserID:      "user_test_123",
+			URL:         "https://google.com",
+			Code:        "xyz789",
+			AccessCount: 2,
+		},
+	}
+
+	repo := &mockLinkRepository{
+		listFunc: func(ctx context.Context, userID string) ([]*model.Link, error) {
+			return expected, nil
+		},
+	}
+
+	handler := newTestHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/urls", nil)
+	rec := httptest.NewRecorder()
+
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Set("userID", "user_test_123")
+
+	handler.List(c)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	var got []*model.Link
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(got) != len(expected) {
+		t.Fatalf("expected %d links, got %d", len(expected), len(got))
+	}
+
+	for i := range expected {
+		if got[i].ID != expected[i].ID {
+			t.Fatalf("expected ID %v, got %v", expected[i].ID, got[i].ID)
+		}
+
+		if got[i].UserID != expected[i].UserID {
+			t.Fatalf("expected UserID %q, got %q", expected[i].UserID, got[i].UserID)
+		}
+
+		if got[i].URL != expected[i].URL {
+			t.Fatalf("expected URL %q, got %q", expected[i].URL, got[i].URL)
+		}
+
+		if got[i].Code != expected[i].Code {
+			t.Fatalf("expected code %q, got %q", expected[i].Code, got[i].Code)
+		}
+
+		if got[i].AccessCount != expected[i].AccessCount {
+			t.Fatalf("expected access count %d, got %d",
+				expected[i].AccessCount, got[i].AccessCount)
+		}
+	}
+}
+
+func TestLinkHandler_List_Empty(t *testing.T) {
+	repo := &mockLinkRepository{
+		listFunc: func(ctx context.Context, userID string) ([]*model.Link, error) {
+			return []*model.Link{}, nil
+		},
+	}
+
+	handler := newTestHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/urls", nil)
+	rec := httptest.NewRecorder()
+
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Set("userID", "user_test_123")
+
+	handler.List(c)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	var got []*model.Link
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("expected 0 links, got %d", len(got))
+	}
+}
+
+func TestLinkHandler_List_Unauthorized(t *testing.T) {
+	repo := &mockLinkRepository{
+		listFunc: func(ctx context.Context, userID string) ([]*model.Link, error) {
+			t.Fatal("repository should not be called")
+			return nil, nil
+		},
+	}
+
+	router := gin.New()
+	handler := newTestHandler(repo)
+	router.GET("/api/v1/urls", handler.List)
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/urls",
+		nil,
+	)
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+}
+
+func TestLinkHandler_List_ServiceError(t *testing.T) {
+	repo := &mockLinkRepository{
+		listFunc: func(ctx context.Context, userID string) ([]*model.Link, error) {
+			return nil, errors.New("database unavailable")
+		},
+	}
+
+	router := setupRouter()
+	handler := newTestHandler(repo)
+	router.GET("/api/v1/urls", handler.List)
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/urls",
 		nil,
 	)
 

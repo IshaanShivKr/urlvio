@@ -97,6 +97,10 @@ func (s *LinkService) Get(ctx context.Context, userID, code string) (*model.Link
 	return link, nil
 }
 
+func (s *LinkService) List(ctx context.Context, userID string) ([]*model.Link, error) {
+	return s.repo.List(ctx, userID)
+}
+
 func (s *LinkService) Delete(ctx context.Context, userID, code string) error {
 	code = strings.TrimSpace(code)
 

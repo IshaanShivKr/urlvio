@@ -93,6 +93,54 @@ func (r *PostgresRepository) Get(ctx context.Context, userID, code string) (*mod
 	return link, nil
 }
 
+func (r *PostgresRepository) List(ctx context.Context, userID string) ([]*model.Link, error) {
+	const query = `
+		SELECT
+			id,
+			user_id,
+			url,
+			code,
+			created_at,
+			updated_at,
+			access_count
+		FROM links
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list links: %w", err)
+	}
+	defer rows.Close()
+
+	var links []*model.Link
+
+	for rows.Next() {
+		link := &model.Link{}
+
+		if err := rows.Scan(
+			&link.ID,
+			&link.UserID,
+			&link.URL,
+			&link.Code,
+			&link.CreatedAt,
+			&link.UpdatedAt,
+			&link.AccessCount,
+		); err != nil {
+			return nil, fmt.Errorf("scan link: %w", err)
+		}
+
+		links = append(links, link)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate links: %w", err)
+	}
+
+	return links, nil
+}
+
 func (r *PostgresRepository) Delete(ctx context.Context, userID, code string) error {
 	const query = `
 		DELETE FROM links

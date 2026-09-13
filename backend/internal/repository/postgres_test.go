@@ -159,6 +159,65 @@ func TestPostgresRepository_Get_NotFound(t *testing.T) {
 	}
 }
 
+func TestPostgresRepository_List(t *testing.T) {
+	repo := newTestRepository(t)
+	ctx := context.Background()
+
+	first := newTestLink("abc123", "https://example.com")
+	first.CreatedAt = time.Now().Add(-2 * time.Hour)
+	first.UpdatedAt = first.CreatedAt
+
+	second := newTestLink("xyz789", "https://google.com")
+	second.CreatedAt = time.Now().Add(-1 * time.Hour)
+	second.UpdatedAt = second.CreatedAt
+
+	otherUser := newTestLink("other1", "https://other.com")
+	otherUser.UserID = "user_other_456"
+
+	for _, link := range []*model.Link{first, second, otherUser} {
+		if err := repo.Create(ctx, link); err != nil {
+			t.Fatalf("failed to create link: %v", err)
+		}
+	}
+
+	got, err := repo.List(ctx, testUserID)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("expected 2 links, got %d", len(got))
+	}
+
+	if got[0].Code != "xyz789" {
+		t.Fatalf("expected newest link first, got %q", got[0].Code)
+	}
+
+	if got[1].Code != "abc123" {
+		t.Fatalf("expected oldest link second, got %q", got[1].Code)
+	}
+
+	for _, link := range got {
+		if link.UserID != testUserID {
+			t.Fatalf("expected only links for user %q, got link for user %q", testUserID, link.UserID)
+		}
+	}
+}
+
+func TestPostgresRepository_List_Empty(t *testing.T) {
+	repo := newTestRepository(t)
+	ctx := context.Background()
+
+	got, err := repo.List(ctx, testUserID)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("expected 0 links, got %d", len(got))
+	}
+}
+
 func TestPostgresRepository_Update(t *testing.T) {
 	repo := newTestRepository(t)
 	ctx := context.Background()

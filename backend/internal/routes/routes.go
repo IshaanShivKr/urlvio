@@ -24,6 +24,7 @@ func Register(
 		urls := api.Group("/urls")
 		urls.Use(authMiddleware)
 		{
+			urls.GET("", linkHandler.List)
 			urls.POST("", linkHandler.Create)
 			urls.GET("/:shortCode/stats", linkHandler.Stats)
 			urls.GET("/:shortCode", linkHandler.Get)

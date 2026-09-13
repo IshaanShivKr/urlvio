@@ -16,6 +16,7 @@ const testUserID = "user_test_123"
 type mockLinkRepository struct {
 	createFunc          func(context.Context, *model.Link) error
 	getFunc             func(context.Context, string, string) (*model.Link, error)
+	listFunc            func(context.Context, string) ([]*model.Link, error)
 	deleteFunc          func(context.Context, string, string) error
 	updateFunc          func(context.Context, string, string, string) (*model.Link, error)
 	getAndIncrementFunc func(context.Context, string) (*model.Link, error)
@@ -27,6 +28,10 @@ func (m *mockLinkRepository) Create(ctx context.Context, link *model.Link) error
 
 func (m *mockLinkRepository) Get(ctx context.Context, userID, code string) (*model.Link, error) {
 	return m.getFunc(ctx, userID, code)
+}
+
+func (m *mockLinkRepository) List(ctx context.Context, userID string) ([]*model.Link, error) {
+	return m.listFunc(ctx, userID)
 }
 
 func (m *mockLinkRepository) Delete(ctx context.Context, userID, code string) error {
@@ -133,6 +138,69 @@ func TestLinkService_Get_RepositoryError(t *testing.T) {
 
 	if !errors.Is(err, repoErr) {
 		t.Fatalf("expected wrapped repository error, got %v", err)
+	}
+}
+
+func TestLinkService_List(t *testing.T) {
+	expected := []*model.Link{
+		{
+			ID:          uuid.New(),
+			UserID:      "user_test_123",
+			URL:         "https://example.com",
+			Code:        "abc123",
+			AccessCount: 5,
+		},
+		{
+			ID:          uuid.New(),
+			UserID:      "user_test_123",
+			URL:         "https://google.com",
+			Code:        "xyz789",
+			AccessCount: 2,
+		},
+	}
+
+	repo := &mockLinkRepository{
+		listFunc: func(ctx context.Context, userID string) ([]*model.Link, error) {
+			if userID != "user_test_123" {
+				t.Fatalf("expected userID %q, got %q", "user_test_123", userID)
+			}
+
+			return expected, nil
+		},
+	}
+
+	svc := NewLinkService(repo)
+
+	got, err := svc.List(context.Background(), "user_test_123")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(got) != len(expected) {
+		t.Fatalf("expected %d links, got %d", len(expected), len(got))
+	}
+
+	for i := range expected {
+		if got[i] != expected[i] {
+			t.Fatalf("expected link %v, got %v", expected[i], got[i])
+		}
+	}
+}
+
+func TestLinkService_List_RepositoryError(t *testing.T) {
+	expectedErr := errors.New("repository error")
+
+	repo := &mockLinkRepository{
+		listFunc: func(ctx context.Context, userID string) ([]*model.Link, error) {
+			return nil, expectedErr
+		},
+	}
+
+	svc := NewLinkService(repo)
+
+	_, err := svc.List(context.Background(), "user_test_123")
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected %v, got %v", expectedErr, err)
 	}
 }
 

@@ -30,6 +30,10 @@ func (stubLinkRepository) Get(ctx context.Context, userID, code string) (*model.
 	return &model.Link{Code: code, URL: "https://example.com"}, nil
 }
 
+func (stubLinkRepository) List(context.Context, string) ([]*model.Link, error) {
+	return nil, nil
+}
+
 func (s stubLinkRepository) Delete(ctx context.Context, userID, code string) error {
 	return nil
 }
@@ -97,6 +101,7 @@ func TestRegister_RouteReachability(t *testing.T) {
 		{"live", http.MethodGet, "/healthz/live", "", http.StatusOK},
 		{"ready", http.MethodGet, "/healthz/ready", "", http.StatusOK},
 		{"create", http.MethodPost, "/api/v1/urls", `{"url":"https://example.com"}`, http.StatusCreated},
+		{"list", http.MethodGet, "/api/v1/urls", "", http.StatusOK},
 		{"stats", http.MethodGet, "/api/v1/urls/abc123/stats", "", http.StatusOK},
 		{"get", http.MethodGet, "/api/v1/urls/abc123", "", http.StatusOK},
 		{"delete", http.MethodDelete, "/api/v1/urls/abc123", "", http.StatusNoContent},
