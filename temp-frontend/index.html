@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>urlvio · console</title>
+<style>
+  :root {
+    --ink: #e8e6df;
+    --dim: #8a8a82;
+    --line: #2b2b26;
+    --bg: #17170f;
+    --panel: #1d1d16;
+    --accent: #c9d94f;
+    --err: #d96a5a;
+    --ok: #7fbf7f;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+  }
+
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  header h1 span { color: var(--accent); }
+
+  #whoami {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--dim);
+  }
+
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 32px;
+  }
+
+  #sign-in {
+    max-width: 400px;
+    margin: 60px auto;
+  }
+
+  .base-url {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .base-url input {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    flex: 1;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 640px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px 18px;
+  }
+
+  .card.wide { grid-column: 1 / -1; }
+
+  .card h2 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: none;
+  }
+
+  .card .verb {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    margin-right: 6px;
+  }
+
+  .card p {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    color: var(--dim);
+  }
+
+  .card input, .card textarea {
+    width: 100%;
+    background: #12120c;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    padding: 8px 10px;
+    border-radius: 3px;
+    margin-bottom: 8px;
+    resize: vertical;
+  }
+
+  button {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  button:hover { background: var(--accent); color: #17170f; }
+  button:disabled { opacity: 0.4; cursor: default; background: transparent; color: var(--accent); }
+
+  #log-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px 18px;
+  }
+
+  #log-panel h2 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #log-panel h2 button {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-color: var(--line);
+    color: var(--dim);
+  }
+  #log-panel h2 button:hover { background: var(--line); color: var(--ink); }
+
+  #log {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  .entry {
+    font-family: var(--mono);
+    font-size: 12px;
+    border-left: 2px solid var(--line);
+    padding: 6px 0 6px 10px;
+  }
+
+  .entry.ok { border-left-color: var(--ok); }
+  .entry.err { border-left-color: var(--err); }
+
+  .entry .meta {
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+
+  .entry .status.ok-text { color: var(--ok); }
+  .entry .status.err-text { color: var(--err); }
+
+  .entry pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>urlvio <span>console</span></h1>
+  <div id="whoami">not signed in</div>
+</header>
+
+<main>
+  <div id="sign-in"></div>
+
+  <div id="app" style="display:none;">
+    <div class="base-url">
+      API base
+      <input id="baseUrl" value="http://localhost:8080" spellcheck="false">
+    </div>
+
+    <div class="grid">
+      <div class="card wide">
+        <h2><span class="verb">POST</span>/api/v1/urls</h2>
+        <p>Shorten a new URL.</p>
+        <input id="createUrl" placeholder="https://example.com/some/long/path" spellcheck="false">
+        <button data-action="create">Create</button>
+      </div>
+
+      <div class="card">
+        <h2><span class="verb">GET</span>/api/v1/urls/:code</h2>
+        <p>Look up a short link's details.</p>
+        <input id="getCode" placeholder="short code, e.g. DRTWt0" spellcheck="false">
+        <button data-action="get">Get</button>
+      </div>
+
+      <div class="card">
+        <h2><span class="verb">GET</span>/api/v1/urls/:code/stats</h2>
+        <p>Fetch click stats for a short link.</p>
+        <input id="statsCode" placeholder="short code" spellcheck="false">
+        <button data-action="stats">Get stats</button>
+      </div>
+
+      <div class="card">
+        <h2><span class="verb">PUT</span>/api/v1/urls/:code</h2>
+        <p>Update where a short code points.</p>
+        <input id="updateCode" placeholder="short code" spellcheck="false">
+        <input id="updateUrl" placeholder="new destination URL" spellcheck="false">
+        <button data-action="update">Update</button>
+      </div>
+
+      <div class="card">
+        <h2><span class="verb">DELETE</span>/api/v1/urls/:code</h2>
+        <p>Remove a short link.</p>
+        <input id="deleteCode" placeholder="short code" spellcheck="false">
+        <button data-action="delete">Delete</button>
+      </div>
+
+      <div class="card wide">
+        <h2><span class="verb">GET</span>/:code</h2>
+        <p>Follow a short link's redirect (no auth required — opens in a new tab).</p>
+        <input id="redirectCode" placeholder="short code" spellcheck="false">
+        <button data-action="redirect">Open</button>
+      </div>
+    </div>
+
+    <div id="log-panel">
+      <h2>Requests <button id="clearLog">Clear</button></h2>
+      <div id="log"></div>
+    </div>
+  </div>
+</main>
+
+<script
+    defer
+    crossorigin="anonymous"
+    src="https://brief-ferret-3560.clerk.accounts.dev/npm/@clerk/ui@1/dist/ui.browser.js">
+</script>
+
+<script
+    defer
+    crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_YnJpZWYtZmVycmV0LTM1NjAuY2xlcmsuYWNjb3VudHMuZGV2JA"
+    src="https://brief-ferret-3560.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js">
+</script>
+
+<script>
+window.addEventListener("load", async function () {
+  await Clerk.load({
+    ui: { ClerkUI: window.__internal_ClerkUICtor },
+  });
+
+  const app = document.getElementById("app");
+  const signInEl = document.getElementById("sign-in");
+  const whoami = document.getElementById("whoami");
+  const log = document.getElementById("log");
+
+  if (!Clerk.isSignedIn) {
+    Clerk.mountSignIn(signInEl);
+    return;
+  }
+
+  signInEl.style.display = "none";
+  app.style.display = "block";
+  whoami.textContent = Clerk.user?.primaryEmailAddress?.emailAddress || Clerk.user?.id || "signed in";
+
+  function baseUrl() {
+    return document.getElementById("baseUrl").value.replace(/\/$/, "");
+  }
+
+  function logEntry(method, path, status, body) {
+    const ok = status >= 200 && status < 300;
+    const el = document.createElement("div");
+    el.className = "entry " + (ok ? "ok" : "err");
+    const time = new Date().toLocaleTimeString();
+    el.innerHTML = `
+      <div class="meta">${time} · ${method} ${path} · <span class="status ${ok ? "ok-text" : "err-text"}">${status}</span></div>
+      <pre>${escapeHtml(body)}</pre>
+    `;
+    log.prepend(el);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  // Fetches a fresh Clerk session token immediately before every call,
+  // so requests never fail due to an expired cached token.
+  async function apiCall(method, path, body) {
+    const token = await Clerk.session.getToken();
+    let status = 0;
+    let text = "";
+    try {
+      const res = await fetch(baseUrl() + path, {
+        method,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+      status = res.status;
+      text = await res.text();
+      try { text = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+    } catch (e) {
+      text = String(e);
+    }
+    logEntry(method, path, status, text);
+  }
+
+  document.querySelector('[data-action="create"]').onclick = () => {
+    const url = document.getElementById("createUrl").value.trim();
+    if (!url) return;
+    apiCall("POST", "/api/v1/urls", { url });
+  };
+
+  document.querySelector('[data-action="get"]').onclick = () => {
+    const code = document.getElementById("getCode").value.trim();
+    if (!code) return;
+    apiCall("GET", `/api/v1/urls/${encodeURIComponent(code)}`);
+  };
+
+  document.querySelector('[data-action="stats"]').onclick = () => {
+    const code = document.getElementById("statsCode").value.trim();
+    if (!code) return;
+    apiCall("GET", `/api/v1/urls/${encodeURIComponent(code)}/stats`);
+  };
+
+  document.querySelector('[data-action="update"]').onclick = () => {
+    const code = document.getElementById("updateCode").value.trim();
+    const url = document.getElementById("updateUrl").value.trim();
+    if (!code || !url) return;
+    apiCall("PUT", `/api/v1/urls/${encodeURIComponent(code)}`, { url });
+  };
+
+  document.querySelector('[data-action="delete"]').onclick = () => {
+    const code = document.getElementById("deleteCode").value.trim();
+    if (!code) return;
+    apiCall("DELETE", `/api/v1/urls/${encodeURIComponent(code)}`);
+  };
+
+  document.querySelector('[data-action="redirect"]').onclick = () => {
+    const code = document.getElementById("redirectCode").value.trim();
+    if (!code) return;
+    window.open(baseUrl() + "/" + encodeURIComponent(code), "_blank");
+  };
+
+  document.getElementById("clearLog").onclick = () => { log.innerHTML = ""; };
+});
+</script>
+
+</body>
+</html>
