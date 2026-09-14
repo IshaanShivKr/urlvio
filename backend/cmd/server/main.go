@@ -68,8 +68,8 @@ func run() error {
 	router.Use(gin.Logger(), gin.Recovery())
 	router.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
-			"http://localhost:5500",
-			"http://127.0.0.1:5500",
+			"http://localhost:5173",
+			"http://127.0.0.1:5173",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Authorization", "Content-Type"},
