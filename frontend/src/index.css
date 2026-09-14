@@ -1,1 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+    --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+    --color-ink: #111114;
+    --color-muted: #52525b;
+    --color-surface: #f6f6f7;
+    --color-accent: #0f766e;
+    }
+
+    body {
+    font-family: var(--font-sans);
+}
