@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
+import { Clipboard } from 'lucide-react'
 
+import { CreateUrlDialog } from '../components/CreateUrlDialog'
 import { ApiError } from '../lib/api'
 import { useLinksQuery } from '../queries/links'
 
@@ -25,9 +28,17 @@ function displayShortUrl(shortUrl: string): string {
     return shortUrl.replace(/^https?:\/\//, '')
 }
 
+function handleCopy(shortUrl: string) {
+    navigator.clipboard
+        .writeText(shortUrl)
+        .then(() => toast.success('Copied to clipboard'))
+        .catch(() => toast.error('Could not copy to clipboard'))
+}
+
 export function Dashboard() {
     const query = useLinksQuery()
     const [search, setSearch] = useState('')
+    const [isCreateOpen, setIsCreateOpen] = useState(false)
 
     const filteredLinks = useMemo(() => {
         const links = query.data ?? []
@@ -51,14 +62,16 @@ export function Dashboard() {
         <div>
         <div className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="text-2xl font-semibold tracking-tight">Your URLs</h1>
-            {/* Intentionally inert for now — creation flow lands in a separate task. */}
             <button
             type="button"
+            onClick={() => setIsCreateOpen(true)}
             className={`rounded border border-ink bg-ink px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 ${focusRing}`}
             >
             Create URL
             </button>
         </div>
+
+        <CreateUrlDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
         <div className="mt-6">
             <label htmlFor="url-search" className="sr-only">
@@ -120,7 +133,7 @@ export function Dashboard() {
                     <th scope="col" className="py-2 pr-4 font-medium">
                         Destination
                     </th>
-                    <th scope="col" className="py-2 pr-4 text-right font-medium">
+                    <th scope="col" className="py-2 pr-4 font-medium">
                         Accesses
                     </th>
                     <th scope="col" className="py-2 pr-4 font-medium">
@@ -135,14 +148,29 @@ export function Dashboard() {
                     {filteredLinks.map((link) => (
                     <tr key={link.code} className="border-b border-zinc-100">
                         <td className="py-3 pr-4 font-mono">
-                        <Link to={`/urls/${link.code}`} className={`rounded text-accent hover:underline ${focusRing}`}>
+                        <div className="flex items-center gap-2">
+                            <a
+                            href={link.short_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`rounded text-accent hover:underline ${focusRing}`}
+                            >
                             {displayShortUrl(link.short_url)}
-                        </Link>
+                            </a>
+                            <button
+                                type="button"
+                                onClick={() => handleCopy(link.short_url)}
+                                aria-label={`Copy short URL ${displayShortUrl(link.short_url)}`}
+                                className={`rounded text-muted hover:text-ink ${focusRing}`}
+                            >
+                                <Clipboard size={16} />
+                            </button>
+                        </div>
                         </td>
                         <td className="max-w-xs truncate py-3 pr-4 text-muted" title={link.url}>
                         {link.url}
                         </td>
-                        <td className="py-3 pr-4 text-right tabular-nums">{formatCount(link.access_count)}</td>
+                        <td className="py-3 pr-4 tabular-nums">{formatCount(link.access_count)}</td>
                         <td className="py-3 pr-4 text-muted">{formatDate(link.created_at)}</td>
                         <td className="py-3 text-right">
                         <Link to={`/urls/${link.code}`} className={`rounded text-muted hover:text-ink ${focusRing}`}>
@@ -159,12 +187,24 @@ export function Dashboard() {
                 {filteredLinks.map((link) => (
                     <li key={link.code} className="py-4">
                     <div className="flex items-center justify-between gap-3">
-                        <Link
-                        to={`/urls/${link.code}`}
-                        className={`rounded font-mono text-accent hover:underline ${focusRing}`}
+                        <div className="flex items-center gap-2">
+                        <a
+                            href={link.short_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`rounded font-mono text-accent hover:underline ${focusRing}`}
                         >
-                        {displayShortUrl(link.short_url)}
-                        </Link>
+                            {displayShortUrl(link.short_url)}
+                        </a>
+                        <button
+                            type="button"
+                            onClick={() => handleCopy(link.short_url)}
+                            aria-label={`Copy short URL ${displayShortUrl(link.short_url)}`}
+                            className={`rounded text-muted hover:text-ink ${focusRing}`}
+                        >
+                            <Clipboard size={16} />
+                        </button>
+                        </div>
                         <Link to={`/urls/${link.code}`} className={`rounded text-sm text-muted hover:text-ink ${focusRing}`}>
                         View
                         </Link>
