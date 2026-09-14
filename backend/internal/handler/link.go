@@ -113,7 +113,20 @@ func (h *LinkHandler) List(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, links)
+	response := make([]LinkListItemResponse, 0, len(links))
+
+	for _, link := range links {
+		response = append(response, LinkListItemResponse{
+			Code:        link.Code,
+			ShortURL:    strings.TrimRight(h.baseURL, "/") + "/" + link.Code,
+			URL:         link.URL,
+			AccessCount: link.AccessCount,
+			CreatedAt:   link.CreatedAt,
+			UpdatedAt:   link.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *LinkHandler) Stats(c *gin.Context) {

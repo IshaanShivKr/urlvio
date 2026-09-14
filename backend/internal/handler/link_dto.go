@@ -21,3 +21,12 @@ type LinkStatsResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
+
+type LinkListItemResponse struct {
+	Code        string    `json:"code"`
+	ShortURL    string    `json:"short_url"`
+	URL         string    `json:"url"`
+	AccessCount int64     `json:"access_count"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}

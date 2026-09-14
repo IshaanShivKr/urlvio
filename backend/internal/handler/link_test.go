@@ -351,7 +351,7 @@ func TestLinkHandler_List(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", rec.Code)
 	}
 
-	var got []*model.Link
+	var got []LinkListItemResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -361,20 +361,17 @@ func TestLinkHandler_List(t *testing.T) {
 	}
 
 	for i := range expected {
-		if got[i].ID != expected[i].ID {
-			t.Fatalf("expected ID %v, got %v", expected[i].ID, got[i].ID)
+		if got[i].Code != expected[i].Code {
+			t.Fatalf("expected code %q, got %q", expected[i].Code, got[i].Code)
 		}
 
-		if got[i].UserID != expected[i].UserID {
-			t.Fatalf("expected UserID %q, got %q", expected[i].UserID, got[i].UserID)
+		expectedShortURL := "http://localhost:8080/" + expected[i].Code
+		if got[i].ShortURL != expectedShortURL {
+			t.Fatalf("expected short URL %q, got %q", expectedShortURL, got[i].ShortURL)
 		}
 
 		if got[i].URL != expected[i].URL {
 			t.Fatalf("expected URL %q, got %q", expected[i].URL, got[i].URL)
-		}
-
-		if got[i].Code != expected[i].Code {
-			t.Fatalf("expected code %q, got %q", expected[i].Code, got[i].Code)
 		}
 
 		if got[i].AccessCount != expected[i].AccessCount {
@@ -406,7 +403,7 @@ func TestLinkHandler_List_Empty(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", rec.Code)
 	}
 
-	var got []*model.Link
+	var got []LinkListItemResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
