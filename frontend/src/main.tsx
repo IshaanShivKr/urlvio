@@ -7,6 +7,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 import { queryClient } from './lib/queryClient'
+import { Toaster } from 'sonner'
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <ClerkProvider publishableKey={clerkPublishableKey} afterSignOutUrl="/">
+          <Toaster />
           <App />
         </ClerkProvider>
       </QueryClientProvider>
